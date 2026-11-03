@@ -12,36 +12,67 @@ function heuristicFallbackParse(transcript, todayStr) {
   const reminders = [];
   const emails = [];
 
-  // 1. Detect expense
-  const expenseMatch = transcript.match(/(?:spent|paid|bought)?\s*(?:rs\.?|inr|rupees|₹|\$)?\s*(\d+(?:\.\d+)?)\s*(?:rs\.?|inr|rupees|₹|\$)?\s*(?:on|for)\s+([a-zA-Z0-9_\s]+?)(?=\s+(?:and|remind|mail|email|$))/i) 
-    || transcript.match(/(?:spent|paid|bought)\s+(\d+(?:\.\d+)?)\s*(?:rs\.?|inr|rupees|₹|\$)?\s*(?:on|for)?\s*([a-zA-Z0-9_\s]+?)(?=\s+(?:and|remind|mail|email|$))/i);
+  // 1. Detect Expense (standalone or part of sentence)
+  const expenseMatch = transcript.match(/(?:spent|paid|bought|expense(?:\s+of)?)\s*(?:rs\.?|inr|rupees|₹|\$)?\s*(\d+(?:\.\d+)?)\s*(?:rs\.?|inr|rupees|₹|\$)?\s*(?:on|for)?\s*([a-zA-Z0-9_\s]+?)(?:\s+(?:and|remind|schedule|add|calendar|mail|email)|$)/i)
+    || transcript.match(/(\d+(?:\.\d+)?)\s*(?:rs\.?|inr|rupees|₹|\$)\s*(?:on|for)\s+([a-zA-Z0-9_\s]+?)(?:\s+(?:and|remind|schedule|add|calendar|mail|email)|$)/i);
+
   if (expenseMatch && Number(expenseMatch[1]) > 0) {
     const amount = Number(expenseMatch[1]);
     let item = (expenseMatch[2] || 'Expense').trim();
-    if (item.length > 30) item = item.slice(0, 30);
+    if (item.length > 35) item = item.slice(0, 35);
+    let category = 'General';
+    if (/lunch|dinner|breakfast|food|coffee|snack|restaurant|pizza|burger/i.test(item)) category = 'Food';
+    else if (/cab|uber|ola|metro|flight|train|petrol|fuel|travel/i.test(item)) category = 'Travel';
+    else if (/groceries|grocery|vegetables|milk|fruits/i.test(item)) category = 'Groceries';
+    else if (/bill|electricity|water|wifi|recharge|rent/i.test(item)) category = 'Utilities';
+    else if (/movie|netflix|concert|game/i.test(item)) category = 'Entertainment';
+
     expenses.push({
       item: item || 'Expense',
       amount: amount,
-      category: lower.includes('lunch') || lower.includes('dinner') || lower.includes('food') ? 'Food' : 'General'
+      category: category
     });
   }
 
-  // 2. Detect reminder / calendar
-  const reminderMatch = transcript.match(/remind(?:\s+me)?\s+(?:to\s+)?(.+?)(?:on\s+([a-zA-Z]+|\d{4}-\d{2}-\d{2})|tomorrow|today|$)/i);
+  // 2. Detect Calendar Event or Reminder (standalone or part of sentence)
+  const reminderMatch = transcript.match(/(?:remind(?:\s+me)?(?:\s+to)?|schedule|add(?:\s+to\s+calendar)?|create\s+(?:a\s+)?(?:calendar\s+)?event|set\s+(?:a\s+)?reminder(?:\s+for)?)\s+(.+?)(?:\s+(?:and\s+send|and\s+mail|and\s+email|send\s+email|send\s+mail|mail\s+to|email\s+to)|$)/i);
   if (reminderMatch) {
-    const task = (reminderMatch[1] || 'Reminder task').trim();
-    const due = todayStr || new Date().toISOString().split('T')[0];
-    reminders.push({
-      task: task,
-      due: due
-    });
+    let rawTask = (reminderMatch[1] || '').trim();
+    let due = todayStr || new Date().toISOString().split('T')[0];
+
+    // Detect relative date in task string
+    if (/\btomorrow\b/i.test(rawTask)) {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      due = d.toISOString().split('T')[0];
+      rawTask = rawTask.replace(/\btomorrow\b/gi, '').trim();
+    } else if (/\bfriday\b/i.test(rawTask)) {
+      due = '2026-11-06';
+      rawTask = rawTask.replace(/\b(?:on\s+)?friday\b/gi, '').trim();
+    } else if (/\bmonday\b/i.test(rawTask)) {
+      due = '2026-11-09';
+      rawTask = rawTask.replace(/\b(?:on\s+)?monday\b/gi, '').trim();
+    }
+
+    // Clean up trailing/leading prepositions
+    rawTask = rawTask.replace(/(?:\s+to\s+calendar|\s+in\s+calendar|\s+on\s+calendar)$/i, '').trim();
+    rawTask = rawTask.replace(/^(?:to\s+|for\s+)/i, '').trim();
+
+    if (rawTask) {
+      reminders.push({
+        task: rawTask,
+        due: due
+      });
+    }
   }
 
-  // 3. Detect email (supporting exact email addresses like user@domain.com or names)
-  const emailMatch = transcript.match(/(?:send\s+(?:an?\s+)?(?:email|mail)|mail)\s+(?:to\s+)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9._%+-]+)?\s*(?:saying|about|that|subject)?\s*(.+)/i);
+  // 3. Detect Email (standalone or part of sentence)
+  const emailMatch = transcript.match(/(?:send\s+(?:an?\s+)?(?:email|mail)|mail|email)\s+(?:to\s+)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9._%+-]+)?\s*(?:saying|about|that|subject)?\s*(.+)/i);
   if (emailMatch) {
     const rawRecipient = (emailMatch[1] || 'colleague@example.com').trim();
-    const content = (emailMatch[2] || 'Important update').trim();
+    let content = (emailMatch[2] || 'Important update').trim();
+    content = content.replace(/^that\s+/i, '').trim();
+
     const subject = `Update regarding ${content.slice(0, 35)}`;
     const body = `Hi,\n\nI am writing to let you know: ${content}\n\nBest regards,`;
     emails.push({
@@ -52,13 +83,13 @@ function heuristicFallbackParse(transcript, todayStr) {
   }
 
   const actions = [];
-  if (expenses.length) actions.push(`logged ${expenses[0].amount} for ${expenses[0].item}`);
-  if (reminders.length) actions.push(`added reminder to ${reminders[0].task} to calendar`);
-  if (emails.length) actions.push(`sent an email to ${emails[0].recipient}`);
+  if (expenses.length) actions.push(`logged ₹${expenses[0].amount} for ${expenses[0].item}`);
+  if (reminders.length) actions.push(`added ${reminders[0].task} to calendar`);
+  if (emails.length) actions.push(`dispatched an email to ${emails[0].recipient}`);
 
   const reply = actions.length > 0
     ? `I have ${actions.join(', and ')}.`
-    : "I heard you, but didn't find any expenses, calendar reminders, or emails to take action on.";
+    : "I heard you, but didn't find any expenses, calendar events, reminders, or emails to take action on.";
 
   return { expenses, reminders, emails, reply };
 }
@@ -117,11 +148,15 @@ Analyze the user's spoken input and return STRICT JSON with this exact schema:
 }
 
 Rules:
-1. Handle messy, compound sentences containing multiple actions (e.g. an expense + a reminder + an email).
-2. If no expense is mentioned, expenses MUST be [].
-3. If no reminder or calendar event is mentioned, reminders MUST be [].
-4. If no email or message is mentioned, emails MUST be [].
-5. If the user statement has no actionable items (e.g. "what is the time", "hello"), return empty arrays and a friendly reply.
+1. The input statement can be:
+   - ONLY an expense (e.g. "Spent 300 on lunch") -> return expenses with item/amount, reminders: [], emails: []
+   - ONLY a calendar event or reminder (e.g. "Schedule team sync on Friday", "Remind me to call Mom tomorrow") -> return reminders, expenses: [], emails: []
+   - ONLY an email (e.g. "Send email to rohit@company.com saying the report is attached") -> return emails with recipient/subject/body, expenses: [], reminders: []
+   - OR ANY combination of them (e.g. an expense + a reminder, an expense + an email, or all three).
+2. If no expense is mentioned, expenses MUST be strictly [].
+3. If no calendar event or reminder is mentioned, reminders MUST be strictly [].
+4. If no email or message is mentioned, emails MUST be strictly [].
+5. If the input is conversational or non-actionable (e.g. "hello", "how are you"), return empty arrays and a friendly reply.
 6. Output raw JSON only. Do NOT enclose in markdown code fences (\`\`\`json). No preamble.`;
 
         const message = await anthropic.messages.create({

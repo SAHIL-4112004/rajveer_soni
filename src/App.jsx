@@ -611,31 +611,43 @@ export default function App() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
             <button
               className="chip"
+              onClick={() => handleSampleClick('Spent 450 rupees on dinner')}
+            >
+              💰 1. Expense Only (₹450 on dinner)
+            </button>
+            <button
+              className="chip"
+              onClick={() => handleSampleClick('Add project review on Friday to calendar')}
+            >
+              📅 2. Calendar Event Only (Friday)
+            </button>
+            <button
+              className="chip"
+              onClick={() => handleSampleClick('Remind me to call Mom tomorrow at 6 pm')}
+            >
+              ⏰ 3. Reminder Only (Tomorrow)
+            </button>
+            <button
+              className="chip"
+              onClick={() => handleSampleClick('Send an email to sarah@company.com saying the project is completed')}
+            >
+              ✉️ 4. Email Only (sarah@company.com)
+            </button>
+            <button
+              className="chip"
               onClick={() =>
                 handleSampleClick(
                   'Spent 250 rupees on lunch and remind me to submit the form on Friday and send an email to alex@gmail.com saying the presentation is ready'
                 )
               }
             >
-              💼 All-in-One: Expense + Calendar + Email (alex@gmail.com)
+              💼 5. Combo: Expense + Event + Email
             </button>
             <button
               className="chip"
-              onClick={() => handleSampleClick('Paid 1200 for groceries and remind me to call doctor tomorrow at 10 am')}
+              onClick={() => handleSampleClick('Hello assistant how is everything going today')}
             >
-              📅 Expense + Calendar Event
-            </button>
-            <button
-              className="chip"
-              onClick={() => handleSampleClick('Send an email to Rahul saying I will be 15 minutes late to the meeting')}
-            >
-              ✉️ Email Dispatch Only
-            </button>
-            <button
-              className="chip"
-              onClick={() => handleSampleClick('Hello assistant how is everything going')}
-            >
-              💬 Non-actionable input
+              💬 6. Conversational / Non-Actionable
             </button>
           </div>
         </div>
