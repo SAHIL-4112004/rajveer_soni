@@ -1,18 +1,21 @@
 {
-  "name": "voice-tracker",
+  "name": "voice-expense-reminder-tracker",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
-  "description": "Voice expense and reminder tracker for solo hackathon",
   "scripts": {
-    "install:all": "npm install && npm --prefix client install",
-    "build": "npm --prefix client install && npm --prefix client run build",
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "cors": "^2.8.5",
+    "lucide-react": "^1.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "vite": "^6.0.7"
   }
 }
