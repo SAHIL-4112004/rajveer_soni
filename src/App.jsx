@@ -147,6 +147,14 @@ export default function App() {
       console.error('SpeechRecognition unsupported:', msg);
     }
 
+    // Pre-load speech synthesis voices
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+
     // Initial fetch of shared database records & Google Sheets API status
     fetchRecords();
     checkSheetsApi();
@@ -161,7 +169,7 @@ export default function App() {
     setErrorMessage('');
   };
 
-  // Browser SpeechSynthesis text-to-speech
+  // Browser SpeechSynthesis text-to-speech with localized voice selection
   const speakReply = (text) => {
     if (!('speechSynthesis' in window) || !text) return;
     try {
@@ -170,6 +178,15 @@ export default function App() {
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.lang = 'en-IN';
+
+      // Pick Indian English or high-quality English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice =
+        voices.find((v) => v.lang === 'en-IN' || v.name.includes('India')) ||
+        voices.find((v) => v.lang.startsWith('en'));
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
 
       setMicState('speaking');
 
@@ -181,7 +198,10 @@ export default function App() {
         setMicState('idle');
       };
 
-      window.speechSynthesis.speak(utterance);
+      // 60ms delay ensures Chrome cleanly flushes prior cancel() before starting speech
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 60);
     } catch (err) {
       console.error('SpeechSynthesis error:', err);
       setMicState('idle');

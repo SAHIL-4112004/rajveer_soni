@@ -18,7 +18,7 @@ function heuristicFallbackParse(transcript, todayStr) {
 
   if (expenseMatch && Number(expenseMatch[1]) > 0) {
     const amount = Number(expenseMatch[1]);
-    let item = (expenseMatch[2] || 'Expense').trim();
+    let item = (expenseMatch[2] || 'Expense').replace(/[,;.]+$/, '').trim();
     if (item.length > 35) item = item.slice(0, 35);
     let category = 'General';
     if (/lunch|dinner|breakfast|food|coffee|snack|restaurant|pizza|burger/i.test(item)) category = 'Food';
@@ -55,7 +55,7 @@ function heuristicFallbackParse(transcript, todayStr) {
     }
 
     // Clean up trailing/leading prepositions
-    rawTask = rawTask.replace(/(?:\s+to\s+calendar|\s+in\s+calendar|\s+on\s+calendar)$/i, '').trim();
+    rawTask = rawTask.replace(/(?:\s+to\s+calendar|\s+in\s+calendar|\s+on\s+calendar)$/i, '').replace(/[,;.]+$/, '').trim();
     rawTask = rawTask.replace(/^(?:to\s+|for\s+)/i, '').trim();
 
     if (rawTask) {
@@ -83,12 +83,19 @@ function heuristicFallbackParse(transcript, todayStr) {
   }
 
   const actions = [];
-  if (expenses.length) actions.push(`logged ₹${expenses[0].amount} for ${expenses[0].item}`);
-  if (reminders.length) actions.push(`added ${reminders[0].task} to calendar`);
-  if (emails.length) actions.push(`dispatched an email to ${emails[0].recipient}`);
+  if (expenses.length) {
+    actions.push(`saved ${expenses[0].amount} rupees for ${expenses[0].item} to your database`);
+  }
+  if (reminders.length) {
+    const dueFormatted = reminders[0].due ? `for ${reminders[0].due}` : '';
+    actions.push(`added ${reminders[0].task} ${dueFormatted} to your Google Calendar`.trim());
+  }
+  if (emails.length) {
+    actions.push(`dispatched your email to ${emails[0].recipient}`);
+  }
 
   const reply = actions.length > 0
-    ? `I have ${actions.join(', and ')}.`
+    ? `Done! I have ${actions.join(', and ')}.`
     : "I heard you, but didn't find any expenses, calendar events, reminders, or emails to take action on.";
 
   return { expenses, reminders, emails, reply };
@@ -144,7 +151,7 @@ Analyze the user's spoken input and return STRICT JSON with this exact schema:
       "body": "well-written, polite email body text composed based on user intent"
     }
   ],
-  "reply": "a short 1-2 sentence spoken voice confirmation summarizing what was done (suitable for speech synthesis)"
+  "reply": "a natural, polite spoken voice confirmation starting with 'Done!' and clearly stating each action performed (e.g. 'Done! I have saved 250 rupees for lunch to your database, added your reminder to Google Calendar for Friday, and dispatched your email to alex@gmail.com.')"
 }
 
 Rules:
