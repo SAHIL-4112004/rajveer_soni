@@ -944,7 +944,7 @@ export default function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <Database size={22} color="#10b981" /> Stage 4: Shared Database & Live Records
+              <Database size={22} color="#10b981" /> Shared Database & Live Records
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '0.2rem' }}>
               Persistent shared data across sessions. Newly saved rows flash with live highlight.
@@ -1175,38 +1175,11 @@ export default function App() {
         </div>
       </div>
 
-      {/* Stage Roadmap Progress Card */}
-      <div className="card">
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#94a3b8', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Hackathon Stage Roadmap
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#10b981' }}>
-            <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
-            <span><strong style={{ color: '#e2e8f0' }}>Stage 1:</strong> Project skeleton + deploy hello-world to get live URL early (DONE)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#10b981' }}>
-            <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
-            <span><strong style={{ color: '#e2e8f0' }}>Stage 2:</strong> Explicit getUserMedia mic permission + en-IN SpeechRecognition & real-time transcript (DONE)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#10b981' }}>
-            <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
-            <span><strong style={{ color: '#e2e8f0' }}>Stage 3:</strong> Vercel serverless /api/process + Claude evaluation + Calendar & Email dispatch (DONE)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#38bdf8' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#0284c7', boxShadow: '0 0 10px #38bdf8', flexShrink: 0 }} />
-            <span><strong style={{ color: '#f8fafc' }}>Stage 4:</strong> Google Sheets shared database integration + live table with highlighted rows (ACTIVE)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #334155', flexShrink: 0 }} />
-            <span><strong>Stage 5:</strong> Voice out, typed fallback, projector-grade error alerts</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #334155', flexShrink: 0 }} />
-            <span><strong>Stage 6:</strong> Polish, README (real vs mocked), and 3-minute hackathon demo script</span>
-          </div>
-        </div>
-      </div>
+      {/* Clean Hackathon Presentation Footer */}
+      <footer style={{ marginTop: '2.5rem', marginBottom: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem', borderTop: '1px solid #1e293b', paddingTop: '1.5rem' }}>
+        <p style={{ color: '#94a3b8', fontWeight: 600 }}>Voice Expense, Calendar & Email Tracker</p>
+        <p style={{ marginTop: '0.25rem' }}>Built for the Voice AI Hackathon • Powered by Claude 3.5, Google Calendar API, Nodemailer & Google Sheets</p>
+      </footer>
     </div>
   );
 }
