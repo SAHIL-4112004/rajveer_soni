@@ -1,0 +1,41 @@
+{
+  "expenses": [
+    {
+      "id": "exp-1793699631981-s9gv",
+      "date": "2026-11-03",
+      "item": "Team Lunch",
+      "category": "Food",
+      "amount": 750
+    },
+    {
+      "id": "exp-1",
+      "date": "2026-11-02",
+      "item": "Coffee & Snack",
+      "category": "Food",
+      "amount": 120
+    },
+    {
+      "id": "exp-2",
+      "date": "2026-11-03",
+      "item": "Metro Pass Recharge",
+      "category": "Travel",
+      "amount": 500
+    }
+  ],
+  "reminders": [
+    {
+      "id": "rem-1793699631982-b293",
+      "dateAdded": "2026-11-03",
+      "task": "Prepare Final Pitch",
+      "due": "2026-11-03",
+      "calendarUrl": null
+    },
+    {
+      "id": "rem-1",
+      "dateAdded": "2026-11-03",
+      "task": "Hackathon Project Submission",
+      "due": "2026-11-03",
+      "calendarUrl": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Hackathon+Project+Submission&dates=20261103T180000Z/20261103T190000Z"
+    }
+  ]
+}

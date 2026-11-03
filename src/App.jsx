@@ -13,7 +13,11 @@ import {
   ExternalLink,
   Code2,
   Sparkles,
-  ArrowRight
+  Database,
+  RefreshCw,
+  FileSpreadsheet,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 
 export default function App() {
@@ -31,6 +35,17 @@ export default function App() {
   const [autoOpenActions, setAutoOpenActions] = useState(true);
   const [autoOpenedNotice, setAutoOpenedNotice] = useState(null);
 
+  // Stage 4: Shared Database Records
+  const [sharedRecords, setSharedRecords] = useState({
+    expenses: [],
+    reminders: [],
+    storageType: 'Loading...',
+    sheetId: null,
+    sheetUrl: null
+  });
+  const [newlyAddedIds, setNewlyAddedIds] = useState(new Set());
+  const [loadingRecords, setLoadingRecords] = useState(false);
+
   // Diagnostics
   const [envDiagnostics, setEnvDiagnostics] = useState({
     isSecureContext: false,
@@ -39,6 +54,22 @@ export default function App() {
   });
 
   const recognitionRef = useRef(null);
+
+  // Fetch records from shared database
+  const fetchRecords = async () => {
+    setLoadingRecords(true);
+    try {
+      const res = await fetch('/api/records');
+      if (res.ok) {
+        const data = await res.json();
+        setSharedRecords(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shared records:', err);
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
 
   useEffect(() => {
     const isSecure = window.isSecureContext;
@@ -57,6 +88,9 @@ export default function App() {
       setErrorMessage(msg);
       console.error('SpeechRecognition unsupported:', msg);
     }
+
+    // Initial fetch of shared database records
+    fetchRecords();
   }, []);
 
   const showError = (msg) => {
@@ -72,7 +106,7 @@ export default function App() {
   const speakReply = (text) => {
     if (!('speechSynthesis' in window) || !text) return;
     try {
-      window.speechSynthesis.cancel(); // Stop any pending utterances
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
@@ -121,6 +155,35 @@ export default function App() {
 
       const data = await res.json();
       setEvaluatedResult(data);
+
+      // Save records to Shared Database (Google Sheets / Persistent Store)
+      if ((data.expenses && data.expenses.length > 0) || (data.reminders && data.reminders.length > 0)) {
+        try {
+          const saveRes = await fetch('/api/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              expenses: data.expenses,
+              reminders: data.reminders
+            })
+          });
+          const saveResult = await saveRes.json();
+          if (saveResult.success) {
+            const newIds = new Set([
+              ...(saveResult.savedExpenses || []).map((e) => e.id),
+              ...(saveResult.savedReminders || []).map((r) => r.id)
+            ]);
+            setNewlyAddedIds(newIds);
+            setSharedRecords((prev) => ({
+              ...prev,
+              expenses: saveResult.allExpenses,
+              reminders: saveResult.allReminders
+            }));
+          }
+        } catch (saveErr) {
+          console.error('Error saving to shared database:', saveErr);
+        }
+      }
 
       // Auto-launch actions if enabled
       if (autoOpenActions) {
@@ -209,7 +272,7 @@ export default function App() {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-IN';
       recognition.interimResults = true;
-      recognition.continuous = false; // Auto-finishes when user stops talking
+      recognition.continuous = false;
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
@@ -235,7 +298,6 @@ export default function App() {
           const completeText = finalSegment.trim();
           setLiveTranscript(completeText);
           setInterimText('');
-          // Automatically evaluate when final utterance finishes
           processStatement(completeText);
         } else {
           setInterimText(interimSegment);
@@ -292,6 +354,7 @@ export default function App() {
     setInterimText('');
     setTypedInput('');
     setEvaluatedResult(null);
+    setAutoOpenedNotice(null);
     clearError();
   };
 
@@ -308,6 +371,12 @@ export default function App() {
       processStatement(typedInput.trim());
     }
   };
+
+  // Calculate live total expenses
+  const totalExpenseAmount = (sharedRecords.expenses || []).reduce(
+    (sum, item) => sum + (Number(item.amount) || 0),
+    0
+  );
 
   return (
     <div className="app-container">
@@ -357,7 +426,7 @@ export default function App() {
           Voice Expense, Calendar & Email Tracker
         </h1>
         <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '680px', margin: '0 auto' }}>
-          Speaks Indian English (en-IN), evaluates with Claude AI, adds calendar events, and drafts contextual emails.
+          Real-time speech capture (en-IN), defensive Claude JSON extraction, and shared Google Sheets persistence.
         </p>
       </header>
 
@@ -366,10 +435,10 @@ export default function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Mic size={20} color="#3b82f6" /> Voice Input & Live Evaluation
+              <Mic size={20} color="#3b82f6" /> Voice Input & Live Actions
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '0.2rem' }}>
-              Speak or type: extracts expenses, creates calendar events, and prepares emails.
+              Speak or type: extracts expenses, creates calendar events, drafts emails, and saves to database.
             </p>
           </div>
           <div>
@@ -442,7 +511,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Typed Fallback Input (for hackathon demo safety) */}
+        {/* Typed Fallback Input */}
         <form onSubmit={handleTypedSubmit} style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem' }}>
           <input
             type="text"
@@ -516,10 +585,10 @@ export default function App() {
       {/* Evaluated Actions Result Section */}
       {evaluatedResult && (
         <div className="card" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <Sparkles size={22} color="#10b981" />
-              <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>AI Evaluated Actions & Real Execution</h2>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>AI Evaluated Actions & Live Execution</h2>
             </div>
             <button
               className="btn-secondary"
@@ -572,13 +641,6 @@ export default function App() {
               >
                 <Volume2 size={16} /> Replay
               </button>
-            </div>
-          )}
-
-          {/* Notice if running on fallback */}
-          {evaluatedResult._notice && (
-            <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: '#fbbf24' }}>
-              ℹ️ {evaluatedResult._notice}
             </div>
           )}
 
@@ -786,6 +848,176 @@ export default function App() {
         </div>
       )}
 
+      {/* STAGE 4: SHARED DATABASE & LIVE PERSISTENT RECORDS TABLE */}
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Database size={22} color="#10b981" /> Stage 4: Shared Database & Live Records
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '0.2rem' }}>
+              Persistent shared data across sessions. Newly saved rows flash with live highlight.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {sharedRecords.sheetUrl ? (
+              <a
+                href={sharedRecords.sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="badge badge-green"
+                style={{ textDecoration: 'none' }}
+              >
+                <FileSpreadsheet size={13} /> Open Google Sheet <ExternalLink size={12} />
+              </a>
+            ) : (
+              <span className="badge badge-blue">
+                <Database size={13} /> {sharedRecords.storageType}
+              </span>
+            )}
+            <button
+              onClick={fetchRecords}
+              className="btn-secondary"
+              title="Refresh database records"
+              style={{ padding: '0.35rem 0.65rem' }}
+            >
+              <RefreshCw size={14} className={loadingRecords ? 'spin-slow' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Live Metrics Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: '#070c18', border: '1px solid #1e293b', padding: '1rem 1.25rem', borderRadius: '0.75rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+              Total Expenses Sum
+            </span>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38bdf8', marginTop: '0.25rem' }}>
+              ₹{totalExpenseAmount.toLocaleString()}
+            </div>
+          </div>
+          <div style={{ background: '#070c18', border: '1px solid #1e293b', padding: '1rem 1.25rem', borderRadius: '0.75rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+              Expense Transactions
+            </span>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.25rem' }}>
+              {sharedRecords.expenses?.length || 0} Records
+            </div>
+          </div>
+          <div style={{ background: '#070c18', border: '1px solid #1e293b', padding: '1rem 1.25rem', borderRadius: '0.75rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+              Calendar Reminders
+            </span>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#c084fc', marginTop: '0.25rem' }}>
+              {sharedRecords.reminders?.length || 0} Items
+            </div>
+          </div>
+        </div>
+
+        {/* Tables Grid */}
+        <div className="grid-2">
+          {/* 1. Shared Expenses Live Table */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Receipt size={16} color="#38bdf8" /> Shared Expenses
+              </h3>
+            </div>
+            <div className="data-table-wrapper" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sharedRecords.expenses?.length > 0 ? (
+                    sharedRecords.expenses.map((exp) => (
+                      <tr
+                        key={exp.id}
+                        className={newlyAddedIds.has(exp.id) ? 'highlight-new' : ''}
+                      >
+                        <td style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{exp.date}</td>
+                        <td style={{ fontWeight: 600 }}>{exp.item}</td>
+                        <td><span className="badge badge-blue">{exp.category}</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>
+                          ₹{Number(exp.amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                        No shared expenses saved yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 2. Shared Reminders Live Table */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Calendar size={16} color="#c084fc" /> Shared Reminders & Calendar
+              </h3>
+            </div>
+            <div className="data-table-wrapper" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Added</th>
+                    <th>Task</th>
+                    <th>Due Date</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sharedRecords.reminders?.length > 0 ? (
+                    sharedRecords.reminders.map((rem) => (
+                      <tr
+                        key={rem.id}
+                        className={newlyAddedIds.has(rem.id) ? 'highlight-new' : ''}
+                      >
+                        <td style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{rem.dateAdded}</td>
+                        <td style={{ fontWeight: 600 }}>{rem.task}</td>
+                        <td style={{ fontSize: '0.85rem', color: '#c084fc' }}>{rem.due || 'No date'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {rem.calendarUrl ? (
+                            <a
+                              href={rem.calendarUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-primary"
+                              style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: '#9333ea', textDecoration: 'none' }}
+                            >
+                              Open <ExternalLink size={11} />
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Saved</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                        No shared reminders saved yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Stage Roadmap Progress Card */}
       <div className="card">
         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#94a3b8', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -800,13 +1032,13 @@ export default function App() {
             <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
             <span><strong style={{ color: '#e2e8f0' }}>Stage 2:</strong> Explicit getUserMedia mic permission + en-IN SpeechRecognition & real-time transcript (DONE)</span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#10b981' }}>
+            <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
+            <span><strong style={{ color: '#e2e8f0' }}>Stage 3:</strong> Vercel serverless /api/process + Claude evaluation + Calendar & Email dispatch (DONE)</span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#38bdf8' }}>
             <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#0284c7', boxShadow: '0 0 10px #38bdf8', flexShrink: 0 }} />
-            <span><strong style={{ color: '#f8fafc' }}>Stage 3:</strong> Vercel serverless /api/process + Claude evaluation + Calendar & Email dispatch (ACTIVE)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #334155', flexShrink: 0 }} />
-            <span><strong>Stage 4:</strong> Google Sheets shared database integration + live table with highlighted rows</span>
+            <span><strong style={{ color: '#f8fafc' }}>Stage 4:</strong> Google Sheets shared database integration + live table with highlighted rows (ACTIVE)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
             <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #334155', flexShrink: 0 }} />
