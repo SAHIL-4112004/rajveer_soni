@@ -37,15 +37,15 @@ function heuristicFallbackParse(transcript, todayStr) {
     });
   }
 
-  // 3. Detect email
-  const emailMatch = transcript.match(/(?:send\s+(?:an?\s+)?(?:email|mail)|mail)\s+(?:to\s+)?([a-zA-Z0-9._%+-]+|[a-zA-Z]+)?\s*(?:saying|about|that)?\s*(.+)/i);
+  // 3. Detect email (supporting exact email addresses like user@domain.com or names)
+  const emailMatch = transcript.match(/(?:send\s+(?:an?\s+)?(?:email|mail)|mail)\s+(?:to\s+)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9._%+-]+)?\s*(?:saying|about|that|subject)?\s*(.+)/i);
   if (emailMatch) {
-    const recipient = (emailMatch[1] || 'Colleague').trim();
+    const rawRecipient = (emailMatch[1] || 'colleague@example.com').trim();
     const content = (emailMatch[2] || 'Important update').trim();
     const subject = `Update regarding ${content.slice(0, 35)}`;
-    const body = `Hi ${recipient},\n\nI am writing to let you know: ${content}\n\nBest regards,`;
+    const body = `Hi,\n\nI am writing to let you know: ${content}\n\nBest regards,`;
     emails.push({
-      recipient,
+      recipient: rawRecipient,
       subject,
       body
     });
@@ -108,7 +108,7 @@ Analyze the user's spoken input and return STRICT JSON with this exact schema:
   ],
   "emails": [
     {
-      "recipient": "person's name or email address if mentioned, else 'recipient'",
+      "recipient": "exact email address if spoken (e.g. alex@gmail.com, user@domain.com) or person's name if mentioned, else 'recipient'",
       "subject": "concise, contextual professional email subject",
       "body": "well-written, polite email body text composed based on user intent"
     }

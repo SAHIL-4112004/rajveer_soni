@@ -56,10 +56,10 @@ export async function executeMailAction({ to, subject, body }) {
   });
 
   const previewUrl = isTestAccount ? nodemailer.getTestMessageUrl(info) : null;
-  const encTo = encodeURIComponent(to && to !== 'recipient' ? to : '');
   const encSubject = encodeURIComponent(subject || '');
   const encBody = encodeURIComponent(body || '');
-  const mailtoUrl = `mailto:${encTo}?subject=${encSubject}&body=${encBody}`;
+  const targetRecipient = to && to !== 'recipient' ? to.trim() : '';
+  const mailtoUrl = `mailto:${targetRecipient}?subject=${encSubject}&body=${encBody}`;
 
   return {
     success: true,
@@ -90,3 +90,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Failed to dispatch email' });
   }
 }
+

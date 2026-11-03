@@ -28,6 +28,8 @@ export default function App() {
   // Evaluated results from backend
   const [evaluatedResult, setEvaluatedResult] = useState(null);
   const [showJson, setShowJson] = useState(false);
+  const [autoOpenActions, setAutoOpenActions] = useState(true);
+  const [autoOpenedNotice, setAutoOpenedNotice] = useState(null);
 
   // Diagnostics
   const [envDiagnostics, setEnvDiagnostics] = useState({
@@ -119,6 +121,35 @@ export default function App() {
 
       const data = await res.json();
       setEvaluatedResult(data);
+
+      // Auto-launch actions if enabled
+      if (autoOpenActions) {
+        const launched = [];
+
+        // 1. Automatically open Google Calendar in new tab to save event
+        if (data.reminders && data.reminders.length > 0) {
+          const calUrl = data.reminders[0].calendarUrl || data.reminders[0].execution?.calendarUrl;
+          if (calUrl) {
+            window.open(calUrl, '_blank');
+            launched.push('Google Calendar event');
+          }
+        }
+
+        // 2. Automatically open Mail app with recipient, subject, and body prefilled
+        if (data.emails && data.emails.length > 0) {
+          const mailUrl = data.emails[0].mailtoUrl;
+          if (mailUrl) {
+            setTimeout(() => {
+              window.location.href = mailUrl;
+            }, 350);
+            launched.push(`Email to ${data.emails[0].recipient || 'recipient'}`);
+          }
+        }
+
+        if (launched.length > 0) {
+          setAutoOpenedNotice(`⚡ Automatically launched: ${launched.join(' & ')}`);
+        }
+      }
 
       // Trigger voice output reply
       if (data.reply) {
@@ -416,7 +447,7 @@ export default function App() {
           <input
             type="text"
             className="input-text"
-            placeholder="Typed fallback: e.g. Spent 250 on lunch, remind me to submit form on Friday, email Alex"
+            placeholder="Typed fallback: e.g. Spent 250 on lunch, remind me to submit form on Friday, email alex@gmail.com"
             value={typedInput}
             onChange={(e) => setTypedInput(e.target.value)}
           />
@@ -430,6 +461,20 @@ export default function App() {
           </button>
         </form>
 
+        {/* Auto-launch toggle */}
+        <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: '0.875rem', color: '#cbd5e1' }}>
+          <input
+            type="checkbox"
+            id="autoOpen"
+            checked={autoOpenActions}
+            onChange={(e) => setAutoOpenActions(e.target.checked)}
+            style={{ width: '16px', height: '16px', accentColor: '#3b82f6', cursor: 'pointer' }}
+          />
+          <label htmlFor="autoOpen" style={{ cursor: 'pointer', userSelect: 'none' }}>
+            ⚡ <strong>Auto-Launch Real Actions:</strong> Open Google Calendar & Mail App with input recipient, subject & body
+          </label>
+        </div>
+
         {/* Quick Test Sample Chips */}
         <div style={{ marginTop: '1.5rem', borderTop: '1px solid #1e293b', paddingTop: '1.25rem' }}>
           <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -440,11 +485,11 @@ export default function App() {
               className="chip"
               onClick={() =>
                 handleSampleClick(
-                  'Spent 250 rupees on lunch and remind me to submit the form on Friday and send an email to Alex saying the presentation is ready'
+                  'Spent 250 rupees on lunch and remind me to submit the form on Friday and send an email to alex@gmail.com saying the presentation is ready'
                 )
               }
             >
-              💼 All-in-One: Expense + Calendar + Email
+              💼 All-in-One: Expense + Calendar + Email (alex@gmail.com)
             </button>
             <button
               className="chip"
@@ -484,6 +529,14 @@ export default function App() {
               <Code2 size={14} /> {showJson ? 'Hide JSON' : 'Inspect JSON'}
             </button>
           </div>
+
+          {/* Auto-Opened Notice Banner */}
+          {autoOpenedNotice && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid #3b82f6', borderRadius: '0.6rem', padding: '0.85rem 1.25rem', marginBottom: '1.25rem', color: '#93c5fd', fontSize: '0.925rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{autoOpenedNotice}</span>
+              <button onClick={() => setAutoOpenedNotice(null)} style={{ background: 'transparent', border: 'none', color: '#93c5fd', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          )}
 
           {/* Spoken Voice Confirmation Box */}
           {evaluatedResult.reply && (
