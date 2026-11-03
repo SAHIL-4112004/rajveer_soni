@@ -6,3 +6,4 @@ export default function handler(req, res) {
     env: process.env.NODE_ENV || 'production'
   });
 }
+
