@@ -597,14 +597,19 @@ export default function App() {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1rem' }}>{rem.task}</div>
+                        <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {rem.task}
+                          <span style={{ fontSize: '0.75rem', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)', padding: '0.15rem 0.5rem', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <CheckCircle2 size={11} /> {rem.execution?.apiUsed ? 'API Connected' : 'Ready'}
+                          </span>
+                        </div>
                         <div style={{ fontSize: '0.85rem', color: '#c084fc', marginTop: '0.2rem' }}>
                           Due: {rem.due || 'No date specified'}
                         </div>
                       </div>
-                      {rem.calendarUrl && (
+                      {(rem.calendarUrl || rem.execution?.calendarUrl || rem.execution?.htmlLink) && (
                         <a
-                          href={rem.calendarUrl}
+                          href={rem.calendarUrl || rem.execution?.calendarUrl || rem.execution?.htmlLink}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn-primary"
@@ -615,7 +620,7 @@ export default function App() {
                             textDecoration: 'none'
                           }}
                         >
-                          Add to Calendar <ExternalLink size={14} />
+                          View in Calendar <ExternalLink size={14} />
                         </a>
                       )}
                     </div>
@@ -649,24 +654,44 @@ export default function App() {
                       border: '1px solid #1e293b'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                      <div style={{ fontSize: '0.9rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         To: <strong style={{ color: '#f8fafc' }}>{mail.recipient || 'Recipient'}</strong>
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.15rem 0.5rem', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <CheckCircle2 size={11} /> {mail.execution?.isTestAccount ? 'Dispatched (Live Test Inbox)' : 'Dispatched via Mail API'}
+                        </span>
                       </div>
-                      {mail.mailtoUrl && (
-                        <a
-                          href={mail.mailtoUrl}
-                          className="btn-primary"
-                          style={{
-                            padding: '0.4rem 0.85rem',
-                            fontSize: '0.85rem',
-                            background: '#059669',
-                            textDecoration: 'none'
-                          }}
-                        >
-                          <Send size={14} /> Open in Email App
-                        </a>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {(mail.previewUrl || mail.execution?.previewUrl) && (
+                          <a
+                            href={mail.previewUrl || mail.execution?.previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary"
+                            style={{
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.85rem',
+                              background: '#2563eb',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <ExternalLink size={14} /> View Sent Email (Inbox)
+                          </a>
+                        )}
+                        {mail.mailtoUrl && (
+                          <a
+                            href={mail.mailtoUrl}
+                            className="btn-secondary"
+                            style={{
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.85rem',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <Send size={14} /> Open in Email App
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div style={{ fontSize: '1rem', fontWeight: 700, color: '#34d399', marginBottom: '0.5rem' }}>
                       Subject: {mail.subject}
