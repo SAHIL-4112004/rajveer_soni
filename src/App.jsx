@@ -35,7 +35,7 @@ export default function App() {
   const [autoOpenActions, setAutoOpenActions] = useState(true);
   const [autoOpenedNotice, setAutoOpenedNotice] = useState(null);
 
-  // Stage 4: Shared Database Records
+  // Stage 4: Shared Database Records & Google Sheets API State
   const [sharedRecords, setSharedRecords] = useState({
     expenses: [],
     reminders: [],
@@ -43,6 +43,15 @@ export default function App() {
     sheetId: null,
     sheetUrl: null
   });
+  const [sheetsApiStatus, setSheetsApiStatus] = useState({
+    connected: false,
+    status: 'Checking...',
+    message: '',
+    sheetUrl: null,
+    tabs: []
+  });
+  const [showSheetsGuide, setShowSheetsGuide] = useState(false);
+  const [sheetsActionNotice, setSheetsActionNotice] = useState(null);
   const [newlyAddedIds, setNewlyAddedIds] = useState(new Set());
   const [loadingRecords, setLoadingRecords] = useState(false);
 
@@ -71,6 +80,55 @@ export default function App() {
     }
   };
 
+  // Check Google Sheets API integration status
+  const checkSheetsApi = async () => {
+    try {
+      const res = await fetch('/api/sheets');
+      if (res.ok) {
+        const data = await res.json();
+        setSheetsApiStatus(data);
+      }
+    } catch (err) {
+      console.error('Failed to check sheets API:', err);
+    }
+  };
+
+  // Initialize Expenses and Reminders tabs and headers in Google Sheets
+  const setupSheetHeaders = async () => {
+    setSheetsActionNotice('Initializing Google Sheet tabs & headers...');
+    try {
+      const res = await fetch('/api/sheets?action=init', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setSheetsActionNotice('✅ Google Sheet headers initialized successfully!');
+        checkSheetsApi();
+      } else {
+        setSheetsActionNotice(`❌ Error: ${data.error || 'Failed to initialize'}`);
+      }
+    } catch (err) {
+      setSheetsActionNotice(`❌ Error: ${err.message}`);
+    }
+    setTimeout(() => setSheetsActionNotice(null), 5000);
+  };
+
+  // Sync all records from local store to Google Sheet
+  const syncLocalToSheet = async () => {
+    setSheetsActionNotice('Syncing records to Google Sheet...');
+    try {
+      const res = await fetch('/api/sheets?action=sync', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setSheetsActionNotice(`✅ ${data.message}`);
+        fetchRecords();
+      } else {
+        setSheetsActionNotice(`❌ Error: ${data.error || 'Failed to sync'}`);
+      }
+    } catch (err) {
+      setSheetsActionNotice(`❌ Error: ${err.message}`);
+    }
+    setTimeout(() => setSheetsActionNotice(null), 5000);
+  };
+
   useEffect(() => {
     const isSecure = window.isSecureContext;
     const protocol = window.location.protocol;
@@ -89,8 +147,9 @@ export default function App() {
       console.error('SpeechRecognition unsupported:', msg);
     }
 
-    // Initial fetch of shared database records
+    // Initial fetch of shared database records & Google Sheets API status
     fetchRecords();
+    checkSheetsApi();
   }, []);
 
   const showError = (msg) => {
@@ -859,24 +918,60 @@ export default function App() {
               Persistent shared data across sessions. Newly saved rows flash with live highlight.
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {sharedRecords.sheetUrl ? (
-              <a
-                href={sharedRecords.sheetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="badge badge-green"
-                style={{ textDecoration: 'none' }}
-              >
-                <FileSpreadsheet size={13} /> Open Google Sheet <ExternalLink size={12} />
-              </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {sheetsApiStatus.connected ? (
+              <span className="badge badge-green">
+                <CheckCircle2 size={13} /> Google Sheets Connected
+              </span>
             ) : (
-              <span className="badge badge-blue">
-                <Database size={13} /> {sharedRecords.storageType}
+              <span className="badge badge-amber">
+                <Database size={13} /> Local Store Active
               </span>
             )}
+
+            {sheetsApiStatus.sheetUrl && (
+              <a
+                href={sheetsApiStatus.sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: '#0f766e', textDecoration: 'none' }}
+              >
+                <FileSpreadsheet size={13} /> Open Sheet <ExternalLink size={12} />
+              </a>
+            )}
+
+            {sheetsApiStatus.connected && (
+              <>
+                <button
+                  onClick={setupSheetHeaders}
+                  className="btn-secondary"
+                  title="Initialize Expenses and Reminders tabs and headers"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                >
+                  ⚡ Setup Headers
+                </button>
+                <button
+                  onClick={syncLocalToSheet}
+                  className="btn-secondary"
+                  title="Sync local data to Google Sheet"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                >
+                  🔄 Sync to Sheet
+                </button>
+              </>
+            )}
+
             <button
-              onClick={fetchRecords}
+              onClick={() => setShowSheetsGuide(!showSheetsGuide)}
+              className="btn-secondary"
+              style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+            >
+              {showSheetsGuide ? 'Hide Guide' : 'Sheets Setup'}
+            </button>
+
+            <button
+              onClick={() => { fetchRecords(); checkSheetsApi(); }}
               className="btn-secondary"
               title="Refresh database records"
               style={{ padding: '0.35rem 0.65rem' }}
@@ -885,6 +980,36 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* Action Notice */}
+        {sheetsActionNotice && (
+          <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid #3b82f6', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', color: '#93c5fd', fontSize: '0.875rem' }}>
+            {sheetsActionNotice}
+          </div>
+        )}
+
+        {/* Collapsible Google Sheets Setup Guide */}
+        {showSheetsGuide && (
+          <div style={{ background: '#070c18', border: '1px solid #1e293b', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem', fontSize: '0.875rem', color: '#cbd5e1' }}>
+            <h4 style={{ color: '#38bdf8', fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              How to Connect Your Real Google Spreadsheet (3 Steps):
+            </h4>
+            <ol style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <li>
+                Create a spreadsheet at <a href="https://sheets.new" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>sheets.new</a> and copy the ID from the URL (between <code>/d/</code> and <code>/edit</code>).
+              </li>
+              <li>
+                Click <strong>Share</strong> in your Google Sheet and invite your Google Cloud Service Account email with <strong>Editor</strong> permission.
+              </li>
+              <li>
+                Add <code>GOOGLE_SHEET_ID</code>, <code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code>, and <code>GOOGLE_PRIVATE_KEY</code> into <code>.env</code>.
+              </li>
+            </ol>
+            <p style={{ marginTop: '0.5rem', color: '#94a3b8', fontSize: '0.8rem' }}>
+              *Once connected, click <strong>"Setup Headers"</strong> to automatically format the <code>Expenses</code> and <code>Reminders</code> tabs with one click!
+            </p>
+          </div>
+        )}
 
         {/* Live Metrics Row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
